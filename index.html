@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Engine</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: white; }
+        .homepage { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+        .logo { font-size: 88px; margin-bottom: 30px; background: linear-gradient(135deg, #4285f4, #ea4335, #fbbc04, #34a853); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .search-box { width: 100%; max-width: 584px; padding: 14px 24px; font-size: 16px; border: 1px solid #dfe1e5; border-radius: 24px; outline: none; }
+        .buttons { display: flex; gap: 12px; margin-top: 20px; }
+        button { background: #f8f9fa; border: 1px solid #f8f9fa; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        .results-page { display: none; padding: 20px; }
+        .results-header { display: flex; align-items: center; gap: 30px; padding-bottom: 20px; border-bottom: 1px solid #ebebeb; margin-bottom: 30px; flex-wrap: wrap; }
+        .results-logo { font-size: 28px; background: linear-gradient(135deg, #4285f4, #ea4335, #fbbc04, #34a853); -webkit-background-clip: text; background-clip: text; color: transparent; cursor: pointer; }
+        .results-search-box { flex: 1; min-width: 200px; padding: 12px 20px; font-size: 16px; border: 1px solid #dfe1e5; border-radius: 24px; }
+        .results-container { max-width: 700px; margin: 0 auto; }
+        .result-item { margin-bottom: 30px; }
+        .result-title { font-size: 18px; margin-bottom: 6px; }
+        .result-title a { color: #1a0dab; text-decoration: none; }
+        .result-snippet { font-size: 14px; color: #4d5156; }
+        .loading, .error { text-align: center; padding: 40px; color: #70757a; }
+        .error { color: #ea4335; }
+        @media (max-width: 768px) { .results-header { flex-direction: column; align-items: stretch; } .logo { font-size: 48px; } }
+    </style>
+</head>
+<body>
+
+<div id="homepage" class="homepage">
+    <div class="logo">Search Engine</div>
+    <input type="text" id="searchInput" class="search-box" placeholder="Search the web..." onkeypress="if(event.key==='Enter') performSearch()">
+    <div class="buttons">
+        <button onclick="performSearch()">Google Search</button>
+    </div>
+</div>
+
+<div id="resultsPage" class="results-page">
+    <div class="results-header">
+        <div onclick="showHomepage()" class="results-logo">Search Engine</div>
+        <input type="text" id="resultsSearchInput" class="results-search-box" onkeypress="if(event.key==='Enter') performResultsSearch()">
+        <button onclick="resetKeys()" style="padding: 8px 15px;">Reset Keys</button>
+    </div>
+    <div id="resultsContainer" class="results-container"></div>
+</div>
+
+<script>
+    // Load or prompt for API keys
+    function getApiKey() {
+        let key = localStorage.getItem('google_api_key');
+        if (!key) {
+            key = prompt('🔑 Enter your Google API Key:\n\nGet it from: https://console.cloud.google.com/');
+            if (key) localStorage.setItem('google_api_key', key);
+        }
+        return key;
+    }
+    
+    function getCx() {
+        let cx = localStorage.getItem('google_cx');
+        if (!cx) {
+            cx = prompt('🔍 Enter your Search Engine ID (cx):\n\nGet it from: https://programmablesearchengine.google.com/');
+            if (cx) localStorage.setItem('google_cx', cx);
+        }
+        return cx;
+    }
+    
+    function resetKeys() {
+        if (confirm('⚠️ This will delete your saved API keys. You will need to re-enter them. Continue?')) {
+            localStorage.removeItem('google_api_key');
+            localStorage.removeItem('google_cx');
+            alert('✅ Keys cleared. Refresh the page to re-enter them.');
+            showHomepage();
+        }
+    }
+    
+    async function performSearch() {
+        const query = document.getElementById('searchInput').value.trim();
+        if (!query) return;
+        
+        const apiKey = getApiKey();
+        const cx = getCx();
+        
+        if (!apiKey || !cx) {
+            alert('Please enter both API Key and Search Engine ID');
+            return;
+        }
+        
+        await searchGoogle(query, apiKey, cx);
+    }
+    
+    async function performResultsSearch() {
+        const query = document.getElementById('resultsSearchInput').value.trim();
+        if (!query) return;
+        
+        const apiKey = getApiKey();
+        const cx = getCx();
+        
+        if (!apiKey || !cx) {
+            alert('Please enter both API Key and Search Engine ID');
+            return;
+        }
+        
+        await searchGoogle(query, apiKey, cx);
+    }
+    
+    async function searchGoogle(query, apiKey, cx) {
+        // Show results page
+        document.getElementById('homepage').style.display = 'none';
+        document.getElementById('resultsPage').style.display = 'block';
+        document.getElementById('resultsContainer').innerHTML = '<div class="loading">🔍 Searching the web...</div>';
+        document.getElementById('resultsSearchInput').value = query;
+        
+        try {
+            // Direct API call to Google (no backend needed!)
+            const url = `https://search-engine-njs7.onrender.com`;
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data.error) {
+                document.getElementById('resultsContainer').innerHTML = `
+                    <div class="error">
+                        ❌ API Error: ${data.error.message}<br><br>
+                        <button onclick="resetKeys()">Reset API Keys</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            displayResults(data, query);
+        } catch (error) {
+            document.getElementById('resultsContainer').innerHTML = `
+                <div class="error">
+                    ❌ Network Error: ${error.message}<br><br>
+                    Check your internet connection and try again.
+                </div>
+            `;
+        }
+    }
+    
+    function displayResults(data, query) {
+        const container = document.getElementById('resultsContainer');
+        
+        if (!data.items || data.items.length === 0) {
+            container.innerHTML = `<div class="loading">No results found for "${query}"<br><br>Try different keywords.</div>`;
+            return;
+        }
+        
+        let html = `<div style="margin-bottom: 20px; color: #70757a; font-size: 14px;">
+            About ${data.searchInformation.formattedTotalResults} results (${data.searchInformation.formattedSearchTime} seconds)
+        </div>`;
+        
+        data.items.forEach(item => {
+            html += `
+                <div class="result-item">
+                    <div style="font-size: 12px; color: #202124; margin-bottom: 4px;">${item.displayLink || item.link}</div>
+                    <div class="result-title">
+                        <a href="${item.link}" target="_blank">${item.title}</a>
+                    </div>
+                    <div class="result-snippet">${item.snippet || 'No description available'}</div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    }
+    
+    function showHomepage() {
+        document.getElementById('homepage').style.display = 'flex';
+        document.getElementById('resultsPage').style.display = 'none';
+        document.getElementById('searchInput').value = '';
+    }
+    
+    // Check for keys on load
+    window.onload = function() {
+        // Just check if keys exist, don't prompt automatically
+        const hasKeys = localStorage.getItem('google_api_key') && localStorage.getItem('google_cx');
+        if (!hasKeys) {
+            console.log('No API keys found. User will be prompted when they search.');
+        }
+    };
+</script>
+</body>
+</html>
